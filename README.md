@@ -103,7 +103,7 @@ preferences.
 Editable fields (name, photo, email), language preference, delete account,
 saved destinations list.
 
-Admin / Analytics Dashboard (Optional)
+Admin / Analytics Dashboard
 - Description: Admin-only interface to track user trends, trip data, and
 platform usage.
 - Purpose: Helps in monitoring app adoption, popular cities, and user

@@ -1,0 +1,290 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          Role      @default(USER)
+  preferences   Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  trips         Trip[]
+  savedCities   SavedCity[]
+  communityPosts CommunityPost[]
+  communityComments CommunityComment[]
+  communityLikes CommunityLike[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Trip {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  coverImage  String?
+  isPublic    Boolean    @default(false)
+  publicSlug  String?    @unique
+  totalBudget Float?
+  userId      String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stops      Stop[]
+  activities Activity[]
+  expenses   Expense[]
+  communityPosts CommunityPost[]
+
+  @@map("trips")
+}
+
+model Stop {
+  id        String   @id @default(cuid())
+  tripId    String
+  cityId    String
+  order     Int
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip       Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  city       City       @relation(fields: [cityId], references: [id])
+  activities Activity[]
+
+  @@map("stops")
+}
+
+model City {
+  id          String  @id @default(cuid())
+  name        String
+  country     String
+  region      String?
+  latitude    Float
+  longitude   Float
+  description String?
+  image       String?
+  costIndex   Float?
+  popularity  Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stops       Stop[]
+  activities  ActivityTemplate[]
+  savedByUsers SavedCity[]
+
+  @@unique([name, country])
+  @@map("cities")
+}
+
+model SavedCity {
+  id     String @id @default(cuid())
+  userId String
+  cityId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cityId])
+  @@map("saved_cities")
+}
+
+model ActivityTemplate {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  category    ActivityCategory
+  duration    Int? // in minutes
+  averageCost Float?
+  image       String?
+  cityId      String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  city       City       @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  activities Activity[]
+
+  @@unique([name, cityId])
+  @@map("activity_templates")
+}
+
+model Activity {
+  id         String           @id @default(cuid())
+  tripId     String
+  stopId     String?
+  templateId String?
+  name       String
+  description String?
+  category   ActivityCategory
+  startTime  DateTime?
+  endTime    DateTime?
+  cost       Float?
+  order      Int              @default(0)
+  notes      String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  trip     Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  stop     Stop?             @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  template ActivityTemplate? @relation(fields: [templateId], references: [id])
+
+  @@map("activities")
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  tripId      String
+  category    ExpenseCategory
+  amount      Float
+  description String
+  date        DateTime
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("expenses")
+}
+
+model CommunityPost {
+  id          String                @id @default(cuid())
+  title       String
+  content     String
+  type        CommunityPostType
+  destination String?               // City or location
+  tripId      String?               // Optional reference to a trip
+  activityId  String?               // Optional reference to an activity
+  rating      Int?                  @default(0) // 1-5 stars
+  tags        String?               // Comma-separated tags for filtering
+  images      String?               // Comma-separated image URLs
+  likes       Int                   @default(0)
+  views       Int                   @default(0)
+  isPublic    Boolean               @default(true)
+  userId      String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip        Trip?                 @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  comments    CommunityComment[]
+  userLikes   CommunityLike[]
+  
+  @@map("community_posts")
+}
+
+model CommunityComment {
+  id       String   @id @default(cuid())
+  content  String
+  postId   String
+  userId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post     CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("community_comments")
+}
+
+model CommunityLike {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+  createdAt DateTime @default(now())
+
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId])
+  @@map("community_likes")
+}
+
+enum CommunityPostType {
+  TRIP_REVIEW
+  ACTIVITY_REVIEW
+  DESTINATION_GUIDE
+  TRAVEL_TIP
+  PHOTO_SHARE
+  QUESTION
+  OTHER
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ActivityCategory {
+  SIGHTSEEING
+  FOOD
+  ENTERTAINMENT
+  ADVENTURE
+  CULTURE
+  SHOPPING
+  RELAXATION
+  TRANSPORTATION
+  ACCOMMODATION
+  OTHER
+}
+
+enum ExpenseCategory {
+  TRANSPORTATION
+  ACCOMMODATION
+  FOOD
+  ACTIVITIES
+  SHOPPING
+  OTHER
+}

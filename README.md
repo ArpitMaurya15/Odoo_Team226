@@ -1,4 +1,5 @@
 # STATEMENT 2 : GlobeTrotter – Empowering Personalized Travel Planning
+# [DEMO VIDEO](https://drive.google.com/file/d/1DOaHMe9P6cCrm8c-0vqiWI9nIDnBgX_C/view?usp=sharing)
 ## Overview:
 The overarching vision for GlobeTrotter is to become a personalized,
 intelligent, and collaborative platform that transforms the way individuals plan and experience travel. The platform aims to empower users to

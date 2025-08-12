@@ -1,148 +1,126 @@
-# GlobeTrotter - Smart Travel Planning Platform
+# STATEMENT 2 : GlobeTrotter – Empowering Personalized Travel Planning
+## Overview:
+The overarching vision for GlobeTrotter is to become a personalized,
+intelligent, and collaborative platform that transforms the way individuals plan and experience travel. The platform aims to empower users to
+dream, design, and organize trips with ease by offering an end-to-end
+travel planning tool that combines flexibility and interactivity.
+It envisions a world where users can explore global destinations, visualize their journeys through structured itineraries, make cost-effective
+decisions, and share their travel plans within a community—making
+travel planning as exciting as the trip itself
+## Features:
+Login / Signup Screen
+- Description: Entry point of the app allowing users to create or access
+their account.
+- Purpose: Authenticate users to manage personal travel plans.
+- Key Functionality/Components:
+Email & password fields, Login button, Signup link, "Forgot Password",
+basic validation
 
-A comprehensive travel planning platform built with Next.js 14, featuring intelligent recommendations, collaborative planning, and budget tracking.
+Dashboard / Home Screen
+- Description: Central hub showing upcoming trips, popular cities, and
+quick actions.
+- Purpose: Allows users to navigate to their trips and explore inspiration.
+- Key Functionality/Components:
+Welcome message, list of recent trips, “Plan New Trip” button,
+recommended destinations, budget highlights.
 
-## Features
 
-### 🎯 Core Features
-- **Smart Trip Planning**: Create detailed itineraries with AI-powered recommendations
-- **Collaborative Planning**: Share trips and plan together with friends and family
-- **Budget Tracking**: Track expenses with visual charts and budget alerts
-- **City Discovery**: Explore destinations with cost indexes and popularity ratings
-- **Activity Management**: Add, organize, and schedule activities with drag-and-drop
-- **Public Sharing**: Share trip itineraries with public URLs
+Create Trip Screen
+- Description: Form to initiate a new trip by providing a name, travel dates,
+and a description.
+- Purpose: Begins the process of creating a personalized travel plan.
+- Key Functionality/Components:
+Trip name, start & end dates, trip description, cover photo upload
+(optional), save button.
 
-### 🔐 Authentication
-- Email/Password authentication
-- Google OAuth integration
-- Role-based access control (User/Admin)
-- Secure session management with NextAuth.js
+My Trips (Trip List) Screen
+- Description: List view of all trips created by the user with basic summary
+data.
+- Purpose: Easily access and manage existing or upcoming trips.
+- Key Functionality/Components:
+Trip cards showing name, date range, destination count, edit/view/delete
+actions.
+  
+ Itinerary Builder Screen
+- Description: Interface to add cities, dates, and activities for each stop.
+- Purpose: Construct the full day-wise trip plan in an interactive format.
+- Key Functionality/Components:
+“Add Stop” button, select city and travel dates, assign activities to
+each stop, reorder cities.
 
-### 🎨 User Interface
-- Responsive design for mobile, tablet, and desktop
-- Modern UI with shadcn/ui components
-- Smooth animations with Framer Motion
-- Dark/light mode support
-- Intuitive drag-and-drop interface
+Itinerary View Screen
+- Description: Visual representation of the completed trip itinerary.
+- Purpose: Review the full plan in a structured format (timeline or
+grouped by cities).
+- Key Functionality/Components:
+Day-wise layout, city headers, activity blocks with time and cost,
+view mode toggle (calendar/list).
 
-## Tech Stack
+City Search
+- Description: Search interface to find and add cities to a trip, with
+info like country, cost index, and popularity.
+- Purpose: Discover and include relevant cities in the itinerary.
+- Key Functionality/Components:
+Search bar, list of cities with meta info, “Add to Trip” button, filter
+by country/region.
 
-### Frontend
-- **Next.js 14** - React framework with App Router
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
-- **shadcn/ui** - Modern component library
-- **Framer Motion** - Smooth animations
-- **Recharts** - Interactive charts and graphs
+Activity Search
+- Description: Browse and select things to do in each stop, categorized
+by interest or cost.
+- Purpose: Enrich trips with experiences like sightseeing, food tours, or
+adventure activities.
+- Key Functionality/Components:
+Activity filters (type, cost, duration), add/remove buttons, quick view
+of description and images.
 
-### Backend
-- **Next.js API Routes** - Serverless API endpoints
-- **Prisma ORM** - Type-safe database client
-- **PostgreSQL** - Primary database
-- **NextAuth.js** - Authentication solution
+Trip Budget & Cost Breakdown Screen
+- Description: Summarized financial view showing estimated total cost
+and breakdowns.
+- Purpose: Helps travelers stay informed and within budget.
+- Key Functionality/Components:
+Cost breakdown by transport, stay, activities, meals; pie/bar charts,
+average cost per day, alerts for overbudget days.
 
-### State Management
-- **Zustand** - Lightweight state management
-- **React Hook Form** - Form handling
-- **Zod** - Schema validation
+Trip Calendar / Timeline Screen
+- Description: Calendar-based or vertical timeline view of the full itinerary.
+- Purpose: Helps users visualize the journey and daily plan flow.
+- Key Functionality/Components:
+Calendar component, expandable day views, drag-to-reorder activities,
+quick editing options.
 
-## Getting Started
+Shared/Public Itinerary View Screen
+- Description: Public page displaying a sharable version of an itinerary.
+- Purpose: Allows others to view, get inspired, or copy the trip.
+- Key Functionality/Components:
+Public URL, itinerary summary, “Copy Trip” button, social media sharing,
+read-only view.
 
-### Prerequisites
-- Node.js 18+ and npm
-- PostgreSQL database
-- Google OAuth credentials (optional)
-- Cloudinary account (optional, for image uploads)
+User Profile / Settings Screen
+- Description: User settings page to update profile information and
+preferences.
+- Purpose: Enables users to control their data, preferences, and privacy.
+- Key Functionality/Components:
+Editable fields (name, photo, email), language preference, delete account,
+saved destinations list.
 
-### Installation
+Admin / Analytics Dashboard
+- Description: Admin-only interface to track user trends, trip data, and
+platform usage.
+- Purpose: Helps in monitoring app adoption, popular cities, and user
+behavior.
+- Key Functionality/Components:
+Tables and charts of trips created, top cities/activities, user engagement
+stats, user management tools.
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/globetrotter.git
-   cd globetrotter
-   ```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+## Mockup Link
+  [Mockup Link](https://link.excalidraw.com/l/65VNwvy7c4X/6CzbTgEeSr1)
 
-3. **Set up environment variables**
-   Create a `.env.local` file in the root directory:
-   ```env
-   # Database
-   DATABASE_URL="postgresql://username:password@localhost:5432/globetrotter_db"
-   
-   # NextAuth.js
-   NEXTAUTH_SECRET="your-secret-key-here"
-   NEXTAUTH_URL="http://localhost:3000"
-   
-   # Google OAuth (optional)
-   GOOGLE_CLIENT_ID="your-google-client-id"
-   GOOGLE_CLIENT_SECRET="your-google-client-secret"
-   
-   # Cloudinary (optional)
-   CLOUDINARY_CLOUD_NAME="your-cloudinary-cloud-name"
-   CLOUDINARY_API_KEY="your-cloudinary-api-key"
-   CLOUDINARY_API_SECRET="your-cloudinary-api-secret"
-   ```
 
-4. **Set up the database**
-   ```bash
-   # Generate Prisma client
-   npx prisma generate
-   
-   # Push database schema
-   npx prisma db push
-   
-   # Seed the database with sample data
-   npm run db:seed
-   ```
 
-5. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-6. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-## Sample Data
-
-The seed script creates:
-- Sample users (john@example.com / admin@example.com)
-- Popular destinations (Paris, Tokyo, New York, Barcelona, Bangkok)
-- Activity templates for each city
-- Sample trip with itinerary and expenses
-
-Login credentials for testing:
-- Email: `john@example.com`
-- Password: `password123`
-
-## Project Structure
-
-```
-src/
-├── app/                    # Next.js App Router pages
-│   ├── api/               # API routes
-│   ├── auth/              # Authentication pages
-│   ├── dashboard/         # User dashboard
-│   ├── trips/             # Trip management pages
-│   └── layout.tsx         # Root layout
-├── components/            # Reusable components
-│   ├── ui/               # shadcn/ui components
-│   └── navbar.tsx        # Navigation component
-├── lib/                   # Utility libraries
-│   ├── auth.ts           # NextAuth configuration
-│   ├── db.ts             # Prisma client
-│   └── utils.ts          # Utility functions
-├── store/                 # Zustand stores
-├── types/                 # TypeScript type definitions
-└── styles/               # Global styles
-
-prisma/
-├── schema.prisma         # Database schema
-└── seed.ts              # Database seed script
-```
-
-Built with ❤️ using Next.js, TypeScript, and modern web technologies.
+  ## Team Details
+  ### Team Nam : Synergy
+- Member 1 : Arpit Maurya(leader)(arpitkm2103@gmail.com)
+- Member 2 : Rushda Rais
+- Member 3 :Sakshaum Jaiswal
+- Member 4 : Srishti Singh 

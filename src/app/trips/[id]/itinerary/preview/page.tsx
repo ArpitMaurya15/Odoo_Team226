@@ -6,7 +6,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, MapPin, Calendar, Clock, IndianRupee, Edit, Eye, Share2, Copy, MessageCircle, Mail, ExternalLink, Navigation } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { ArrowLeft, MapPin, Calendar, Clock, IndianRupee, Edit, Eye, Share2, Copy, MessageCircle, Mail, ExternalLink, Navigation, Sparkles, MapIcon } from 'lucide-react'
 import { formatDate, formatCurrency } from '@/lib/utils'
 
 interface Activity {
@@ -53,6 +54,12 @@ export default function ItineraryPreviewPage() {
   const [error, setError] = useState('')
   const [showShareOptions, setShowShareOptions] = useState(false)
   const [copySuccess, setCopySuccess] = useState(false)
+  const [showAiPlanner, setShowAiPlanner] = useState(false)
+  const [aiDestination, setAiDestination] = useState('')
+  const [aiItinerary, setAiItinerary] = useState<any>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [saveLoading, setSaveLoading] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
 
   useEffect(() => {
     // Allow viewing without authentication, but redirect to signin for unauthenticated users only if they try to edit
@@ -146,6 +153,95 @@ export default function ItineraryPreviewPage() {
     }
   }
 
+  const handleAiPlanner = () => {
+    setShowAiPlanner(true)
+  }
+
+  const generateAiItinerary = async () => {
+    if (!aiDestination.trim()) {
+      alert('Please enter a destination')
+      return
+    }
+
+    if (!trip) {
+      alert('Trip information not available')
+      return
+    }
+
+    // Calculate number of days from trip dates
+    const tripDays = Math.ceil(
+      (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)
+    ) + 1 // Add 1 to include both start and end days
+
+    setAiLoading(true)
+    try {
+      const response = await fetch('/api/ai-itinerary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          destination: aiDestination,
+          days: tripDays
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setAiItinerary(data.itinerary)
+      } else {
+        throw new Error('Failed to generate itinerary')
+      }
+    } catch (error) {
+      console.error('Error generating AI itinerary:', error)
+      alert('Failed to generate itinerary. Please try again.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const closeAiPlanner = () => {
+    setShowAiPlanner(false)
+    setAiItinerary(null)
+    setAiDestination('')
+    setSaveSuccess(false)
+  }
+
+  const saveAiItinerary = async () => {
+    if (!aiItinerary) return
+
+    setSaveLoading(true)
+    try {
+      const response = await fetch('/api/save-ai-itinerary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          itinerary: aiItinerary,
+          tripId: params.id // Pass the current trip ID
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSaveSuccess(true)
+        // Refresh the current page to show the updated itinerary
+        setTimeout(() => {
+          window.location.reload()
+        }, 2000)
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save itinerary')
+      }
+    } catch (error) {
+      console.error('Error saving itinerary:', error)
+      alert('Failed to save itinerary. Please try again.')
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+
   if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -194,7 +290,7 @@ export default function ItineraryPreviewPage() {
   const isAuthenticated = status === 'authenticated'
   const totalDays = Math.ceil(
     (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)
-  )
+  ) + 1
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -215,6 +311,17 @@ export default function ItineraryPreviewPage() {
               </div>
             </div>
             <div className="flex items-center space-x-2 relative">
+              {/* AI Planner Button */}
+              <Button
+                onClick={handleAiPlanner}
+                variant="outline"
+                size="sm"
+                className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-blue-600 text-white border-0 hover:from-purple-600 hover:to-blue-700"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>AI Planner</span>
+              </Button>
+              
               {isAuthenticated && (
                 <Button
                   onClick={handleShare}
@@ -357,9 +464,17 @@ export default function ItineraryPreviewPage() {
                 {trip.stops
                   .sort((a, b) => a.order - b.order)
                   .map((stop, index) => {
-                    const stopDays = Math.ceil(
-                      (new Date(stop.endDate).getTime() - new Date(stop.startDate).getTime()) / (1000 * 60 * 60 * 24)
-                    )
+                    // Calculate which day of the trip this stop represents
+                    const tripStartDate = new Date(trip.startDate)
+                    const stopStartDate = new Date(stop.startDate)
+                    
+                    // Reset time to start of day for accurate comparison
+                    tripStartDate.setHours(0, 0, 0, 0)
+                    stopStartDate.setHours(0, 0, 0, 0)
+                    
+                    const dayOfTrip = Math.floor(
+                      (stopStartDate.getTime() - tripStartDate.getTime()) / (1000 * 60 * 60 * 24)
+                    ) + 1
                     const isLast = index === trip.stops.length - 1
 
                     return (
@@ -398,7 +513,7 @@ export default function ItineraryPreviewPage() {
                                 </div>
                                 <div className="flex items-center space-x-2 bg-white/50 px-3 py-1 rounded-full">
                                   <Clock className="h-4 w-4 text-blue-600" />
-                                  <span>{stopDays} {stopDays === 1 ? 'day' : 'days'}</span>
+                                  <span>Day {dayOfTrip}</span>
                                 </div>
                               </div>
                             </div>
@@ -662,6 +777,210 @@ export default function ItineraryPreviewPage() {
           )}
         </div>
       </main>
+
+      {/* AI Planner Modal */}
+      {showAiPlanner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="h-6 w-6 text-purple-600" />
+                <h2 className="text-xl font-bold text-gray-900">AI Travel Planner</h2>
+              </div>
+              <Button onClick={closeAiPlanner} variant="ghost" size="sm">
+                ✕
+              </Button>
+            </div>
+
+            <div className="p-6">
+              {!aiItinerary ? (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <div className="bg-gradient-to-r from-purple-500 to-blue-600 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                      <MapIcon className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Where do you want to travel?</h3>
+                    <p className="text-gray-600">Let AI create a personalized itinerary with trending places for your destination</p>
+                    {trip && (
+                      <div className="mt-2 text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full inline-block">
+                        {Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} day itinerary for your trip
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Destination
+                      </label>
+                      <Input
+                        type="text"
+                        placeholder="e.g., Paris, Tokyo, New York, Goa..."
+                        value={aiDestination}
+                        onChange={(e) => setAiDestination(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      onClick={generateAiItinerary}
+                      disabled={aiLoading || !aiDestination.trim()}
+                      className="bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white px-8 py-2"
+                    >
+                      {aiLoading ? (
+                        <div className="flex items-center space-x-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Generating Itinerary...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <Sparkles className="h-4 w-4" />
+                          <span>Generate AI Itinerary</span>
+                        </div>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* AI Generated Itinerary Display */}
+                  <div className="text-center border-b pb-4">
+                    <h3 className="text-2xl font-bold text-gray-900">{aiItinerary.destination}</h3>
+                    <p className="text-gray-600">{aiItinerary.totalDays} Day{aiItinerary.totalDays > 1 ? 's' : ''} Itinerary</p>
+                    <div className="mt-2 inline-flex items-center space-x-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
+                      <IndianRupee className="h-4 w-4" />
+                      <span>{aiItinerary.estimatedBudget}</span>
+                    </div>
+                  </div>
+
+                  {/* Days Itinerary */}
+                  <div className="space-y-6">
+                    {aiItinerary.days.map((day: any, index: number) => (
+                      <Card key={index} className="border-l-4 border-l-purple-500">
+                        <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50">
+                          <CardTitle className="text-lg text-purple-900">{day.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                          <div className="space-y-4">
+                            {day.activities.map((activity: any, actIndex: number) => (
+                              <div key={actIndex} className="flex space-x-4 p-3 bg-gray-50 rounded-lg">
+                                <div className="flex-shrink-0 w-16 text-center">
+                                  <div className="text-sm font-semibold text-purple-600">{activity.time}</div>
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-gray-900">{activity.title}</h4>
+                                  <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                                  <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-gray-500">
+                                    <span className="flex items-center space-x-1">
+                                      <MapPin className="h-3 w-3" />
+                                      <span>{activity.location}</span>
+                                    </span>
+                                    <span className="flex items-center space-x-1">
+                                      <Clock className="h-3 w-3" />
+                                      <span>{activity.duration}</span>
+                                    </span>
+                                    <span className="flex items-center space-x-1">
+                                      <IndianRupee className="h-3 w-3" />
+                                      <span>{activity.cost}</span>
+                                    </span>
+                                    <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                                      {activity.type}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Travel Tips */}
+                  {aiItinerary.tips && aiItinerary.tips.length > 0 && (
+                    <Card className="bg-yellow-50 border-yellow-200">
+                      <CardHeader>
+                        <CardTitle className="text-lg text-yellow-800">💡 Travel Tips</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2">
+                          {aiItinerary.tips.map((tip: string, index: number) => (
+                            <li key={index} className="text-yellow-700 flex items-start space-x-2">
+                              <span className="text-yellow-500 mt-1">•</span>
+                              <span>{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-center space-x-4 pt-4 border-t">
+                    {saveSuccess ? (
+                      <div className="text-center">
+                        <div className="text-green-600 mb-2">
+                          ✅ AI itinerary added to your trip successfully!
+                        </div>
+                        <p className="text-sm text-gray-600">Refreshing to show updated itinerary...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={() => {
+                            setAiItinerary(null)
+                            setAiDestination('')
+                          }}
+                          variant="outline"
+                        >
+                          Generate New Itinerary
+                        </Button>
+                        
+                        {isAuthenticated && (
+                          <Button
+                            onClick={saveAiItinerary}
+                            disabled={saveLoading}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {saveLoading ? (
+                              <div className="flex items-center space-x-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <span>Saving...</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center space-x-2">
+                                <span>💾</span>
+                                <span>Add to This Trip</span>
+                              </div>
+                            )}
+                          </Button>
+                        )}
+                        
+                        {!isAuthenticated && (
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600 mb-2">Sign in to save this itinerary</p>
+                            <Link href="/auth/signin">
+                              <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+                                Sign In
+                              </Button>
+                            </Link>
+                          </div>
+                        )}
+                        
+                        <Button onClick={closeAiPlanner} className="bg-purple-600 hover:bg-purple-700 text-white">
+                          Close
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

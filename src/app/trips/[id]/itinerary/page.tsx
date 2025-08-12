@@ -279,9 +279,19 @@ export default function ManageItinerary() {
     setError('')
 
     try {
-      const response = await fetch(`/api/trips/${params.id}/stops/${stopId}/activities/${activityId}`, {
-        method: 'DELETE',
-      })
+      let response
+      
+      // If stopId is empty, it's an unassigned activity, delete it directly from the trip
+      if (!stopId) {
+        response = await fetch(`/api/trips/${params.id}/activities/${activityId}`, {
+          method: 'DELETE',
+        })
+      } else {
+        // If stopId is provided, delete it from the specific stop
+        response = await fetch(`/api/trips/${params.id}/stops/${stopId}/activities/${activityId}`, {
+          method: 'DELETE',
+        })
+      }
 
       if (response.ok) {
         await fetchTrip()
@@ -594,15 +604,77 @@ export default function ManageItinerary() {
                 </CardContent>
               </Card>
             ) : (
-              <DraggableStops
-                stops={trip.stops}
-                onDragEnd={handleDragEnd}
-                onEditStop={handleEditStop}
-                onDeleteStop={handleDeleteStop}
-                onAddActivity={handleAddActivity}
-                onDeleteActivity={handleDeleteActivity}
-                isDeleting={isDeleting}
-              />
+              <>
+                {/* Unassigned Activities Section */}
+                {trip.activities && trip.activities.filter(activity => !activity.stopId).length > 0 && (
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <span className="bg-amber-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">
+                          !
+                        </span>
+                        <span>Unassigned Activities</span>
+                      </CardTitle>
+                      <CardDescription>
+                        These activities were added to your trip but haven't been assigned to a specific stop yet.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {trip.activities.filter(activity => !activity.stopId).map((activity) => (
+                          <div key={activity.id} className="border rounded-lg p-4 bg-white">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="font-medium text-gray-900">{activity.name}</h5>
+                              <div className="flex items-center space-x-2">
+                                {activity.cost && (
+                                  <span className="text-sm text-gray-600">
+                                    {formatCurrency(activity.cost)}
+                                  </span>
+                                )}
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleDeleteActivity('', activity.id)}
+                                  disabled={isDeleting}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            {activity.description && (
+                              <p className="text-sm text-gray-700 mb-2">{activity.description}</p>
+                            )}
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-gray-500">
+                                <Calendar className="h-3 w-3 inline mr-1" />
+                                {activity.startTime ? formatDate(new Date(activity.startTime)) : 'No date set'}
+                              </p>
+                              <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                                {activity.category.replace('_', ' ').toLowerCase()}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          💡 <strong>Tip:</strong> You can assign these activities to specific stops by editing them or dragging them to a stop once we add that feature.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <DraggableStops
+                  stops={trip.stops}
+                  onDragEnd={handleDragEnd}
+                  onEditStop={handleEditStop}
+                  onDeleteStop={handleDeleteStop}
+                  onAddActivity={handleAddActivity}
+                  onDeleteActivity={handleDeleteActivity}
+                  isDeleting={isDeleting}
+                />
+              </>
             )}
             
             {/* Add Stop button for when there are existing stops */}

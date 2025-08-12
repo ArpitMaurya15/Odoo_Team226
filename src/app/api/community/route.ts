@@ -18,14 +18,23 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sortOrder') || 'desc'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '12')
+    const excludeItineraries = searchParams.get('excludeItineraries') === 'true'
+    const onlyItineraries = searchParams.get('onlyItineraries') === 'true'
 
-    console.log('Community API called with params:', { search, type, destination, sortBy, sortOrder, page, limit })
+    console.log('Community API called with params:', { search, type, destination, sortBy, sortOrder, page, limit, excludeItineraries, onlyItineraries })
 
     const skip = (page - 1) * limit
 
     // Build where clause for filtering
     const where: any = {
       isPublic: true
+    }
+
+    // Filter by itinerary type
+    if (excludeItineraries) {
+      where.tripId = null // Exclude posts with tripId (regular posts)
+    } else if (onlyItineraries) {
+      where.tripId = { not: null } // Only posts with tripId (shared itineraries)
     }
 
     if (search) {

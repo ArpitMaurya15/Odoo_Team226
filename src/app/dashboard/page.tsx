@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Navbar } from '@/components/navbar'
-import { Plus, MapPin, Calendar, IndianRupee, Plane } from 'lucide-react'
+import { Plus, MapPin, Calendar, IndianRupee, Plane, Heart } from 'lucide-react'
 import { TripWithDetails } from '@/types'
 import { formatDate, formatCurrency } from '@/lib/utils'
 
@@ -17,6 +17,8 @@ export default function Dashboard() {
   const [trips, setTrips] = useState<TripWithDetails[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [userName, setUserName] = useState('')
+  const [favoritePlaces, setFavoritePlaces] = useState<any[]>([])
+  const [favoritesLoading, setFavoritesLoading] = useState(true)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -25,11 +27,12 @@ export default function Dashboard() {
   }, [status, router])
 
   useEffect(() => {
-    if (session?.user) {
+    if (status === 'authenticated' && session?.user) {
       fetchTrips()
       fetchUserProfile()
+      fetchFavoritePlaces()
     }
-  }, [session])
+  }, [session, status])
 
   const fetchUserProfile = async () => {
     try {
@@ -59,6 +62,43 @@ export default function Dashboard() {
       console.error('Error fetching trips:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchFavoritePlaces = async () => {
+    try {
+      const response = await fetch('/api/cities/favorites')
+      if (response.ok) {
+        const data = await response.json()
+        setFavoritePlaces(data.favorites || [])
+      }
+    } catch (error) {
+      console.error('Error fetching favorite places:', error)
+    } finally {
+      setFavoritesLoading(false)
+    }
+  }
+
+  const removeFavorite = async (place: any) => {
+    try {
+      const response = await fetch('/api/cities/favorites', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          placeId: place.placeId
+        })
+      })
+
+      if (response.ok) {
+        // Remove from local state
+        setFavoritePlaces(prev => prev.filter(p => p.id !== place.id))
+      } else {
+        console.error('Failed to remove favorite')
+      }
+    } catch (error) {
+      console.error('Error removing favorite:', error)
     }
   }
 
@@ -92,7 +132,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Trips</CardTitle>
@@ -120,6 +160,16 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(totalBudget)}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Favorite Places</CardTitle>
+              <Heart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{favoritePlaces.length}</div>
             </CardContent>
           </Card>
         </div>
@@ -164,6 +214,93 @@ export default function Dashboard() {
               </Card>
             </Link>
           </div>
+        </div>
+
+        {/* Favorite Places */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Favorite Places</h2>
+            <Link href="/cities">
+              <Button variant="outline">Explore More</Button>
+            </Link>
+          </div>
+
+          {favoritesLoading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-8">
+                <div className="text-lg">Loading favorites...</div>
+              </CardContent>
+            </Card>
+          ) : favoritePlaces.length === 0 ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Heart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No favorite places yet</h3>
+                  <p className="text-gray-600 mb-4">Start exploring cities and mark your favorites!</p>
+                  <Link href="/cities">
+                    <Button>Explore Cities</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {favoritePlaces.slice(0, 6).map((place) => (
+                <Card key={place.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="truncate">{place.placeName}</CardTitle>
+                    <CardDescription>
+                      {place.city}, {place.country}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {place.type && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {place.type}
+                        </div>
+                      )}
+                      {place.rating && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <span className="mr-1">⭐</span>
+                          {place.rating.toFixed(1)} rating
+                        </div>
+                      )}
+                      {place.description && (
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          {place.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="mt-4 flex space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => {
+                          const query = encodeURIComponent([place.placeName, place.city, place.state, place.country].filter(Boolean).join(', '))
+                          window.open(`https://www.google.com/maps/search/${query}`, '_blank')
+                        }}
+                      >
+                        <MapPin className="h-4 w-4 mr-1" />
+                        View Map
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => removeFavorite(place)}
+                      >
+                        <Heart className="h-4 w-4 fill-current" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Recent Trips */}

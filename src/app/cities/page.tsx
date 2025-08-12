@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { MapPin, Search, Star, Clock, Navigation, Loader2, ArrowLeft } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { MapPin, Search, Star, Clock, Navigation, Loader2, ArrowLeft, Plus, ChevronDown, Calendar, Heart } from 'lucide-react'
 import Link from 'next/link'
 
 export default function CitiesPage() {
@@ -16,6 +17,23 @@ export default function CitiesPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [searchHistory, setSearchHistory] = useState<string[]>([])
+  const [userTrips, setUserTrips] = useState<any[]>([])
+  const [loadingTrips, setLoadingTrips] = useState(false)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [favoritePlaces, setFavoritePlaces] = useState<Set<string>>(new Set())
+  const [favoriteLoading, setFavoriteLoading] = useState<Set<string>>(new Set())
+  
+  // Modal state for adding destination to trip
+  const [showAddDestinationModal, setShowAddDestinationModal] = useState(false)
+  const [selectedPlace, setSelectedPlace] = useState<any>(null)
+  const [isAddingToTrip, setIsAddingToTrip] = useState(false)
+  const [addDestinationForm, setAddDestinationForm] = useState({
+    selectedTripId: '',
+    destinationName: '',
+    startDate: '',
+    endDate: '',
+    notes: ''
+  })
 
   // Popular cities for quick selection
   const popularCities = [
@@ -32,6 +50,187 @@ export default function CitiesPage() {
     { name: 'Barcelona', country: 'Spain', state: 'Catalonia' },
     { name: 'Rome', country: 'Italy', state: 'Lazio' }
   ]
+
+  // Fetch user's trips
+  const fetchUserTrips = async () => {
+    if (!session?.user?.id) return
+    
+    try {
+      setLoadingTrips(true)
+      const response = await fetch('/api/trips')
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUserTrips(data.trips || [])
+      }
+    } catch (err) {
+      console.error('Error fetching trips:', err)
+    } finally {
+      setLoadingTrips(false)
+    }
+  }
+
+  // Fetch user's favorite places
+  const fetchFavoritePlaces = async () => {
+    if (!session?.user?.id) return
+    
+    try {
+      const response = await fetch('/api/cities/favorites')
+      if (response.ok) {
+        const data = await response.json()
+        const favoriteIds = new Set<string>(data.favorites.map((fav: any) => String(fav.placeId)))
+        setFavoritePlaces(favoriteIds)
+      }
+    } catch (err) {
+      console.error('Error fetching favorites:', err)
+    }
+  }
+
+  // Toggle favorite status of a place
+  const toggleFavorite = async (place: any) => {
+    if (!session?.user?.id) return
+    
+    const placeId = `${place.name}-${place.city || selectedCity}`
+    const isFavorite = favoritePlaces.has(placeId)
+    
+    setFavoriteLoading(prev => new Set(prev.add(placeId)))
+    
+    try {
+      const response = await fetch('/api/cities/favorites', {
+        method: isFavorite ? 'DELETE' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placeId,
+          placeName: place.name,
+          city: place.city || selectedCity,
+          country: place.country,
+          state: place.state,
+          type: place.type,
+          rating: place.rating,
+          description: place.description
+        })
+      })
+
+      if (response.ok) {
+        setFavoritePlaces(prev => {
+          const newSet = new Set(prev)
+          if (isFavorite) {
+            newSet.delete(placeId)
+          } else {
+            newSet.add(placeId)
+          }
+          return newSet
+        })
+      }
+    } catch (err) {
+      console.error('Error toggling favorite:', err)
+    } finally {
+      setFavoriteLoading(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(placeId)
+        return newSet
+      })
+    }
+  }
+
+  // Open modal to add destination to trip
+  const openAddDestinationModal = (place: any) => {
+    setSelectedPlace(place)
+    
+    // Use the specific place name as the destination name
+    const destinationName = place.name || place.title || 'Unknown Place'
+    
+    setAddDestinationForm({
+      selectedTripId: '',
+      destinationName: destinationName,
+      startDate: '',
+      endDate: '',
+      notes: `${destinationName} in ${selectedCity}`
+    })
+    
+    // Load user trips if not already loaded
+    if (!loadingTrips && userTrips.length === 0) {
+      fetchUserTrips()
+    }
+    
+    setShowAddDestinationModal(true)
+    setOpenDropdown(null)
+  }
+
+  // Add destination to selected trip as a stop
+  const addDestinationToTrip = async () => {
+    if (!addDestinationForm.selectedTripId || !addDestinationForm.destinationName || 
+        !addDestinationForm.startDate || !addDestinationForm.endDate) {
+      alert('❌ Please fill in all required fields')
+      return
+    }
+
+    if (new Date(addDestinationForm.startDate) >= new Date(addDestinationForm.endDate)) {
+      alert('❌ End date must be after start date')
+      return
+    }
+
+    try {
+      setIsAddingToTrip(true)
+      
+      const trip = userTrips.find(t => t.id === addDestinationForm.selectedTripId)
+      if (!trip) {
+        alert('❌ Trip not found')
+        return
+      }
+
+      const response = await fetch(`/api/trips/${addDestinationForm.selectedTripId}/stops`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stops: [{
+            name: addDestinationForm.destinationName,
+            startDate: addDestinationForm.startDate,
+            endDate: addDestinationForm.endDate,
+            budget: '' // Optional budget
+          }]
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`✅ "${addDestinationForm.destinationName}" has been added as a destination to "${trip.name}"!\n\n📅 Dates: ${addDestinationForm.startDate} to ${addDestinationForm.endDate}\n\n💡 You can now view and manage this destination in your itinerary.`)
+        setShowAddDestinationModal(false)
+        setSelectedPlace(null)
+      } else {
+        const errorData = await response.json()
+        console.error('API Error:', errorData)
+        alert(`❌ Failed to add destination to trip: ${errorData.error || 'Please try again.'}`)
+      }
+    } catch (err) {
+      console.error('Error adding destination to trip:', err)
+      alert('❌ Failed to add destination to trip. Please try again.')
+    } finally {
+      setIsAddingToTrip(false)
+    }
+  }
+
+  // Load trips and favorites when user is logged in
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchUserTrips()
+      fetchFavoritePlaces()
+    }
+  }, [session])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdown(null)
+    }
+
+    if (openDropdown) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [openDropdown])
 
   // Fetch popular places for a city using Gemini API
   const fetchCityPlaces = async (cityName: string) => {
@@ -287,25 +486,200 @@ export default function CitiesPage() {
                       )}
                     </div>
 
-                    {/* Google Maps Button */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full flex items-center space-x-2 hover:bg-blue-50"
-                      onClick={() => {
-                        const query = encodeURIComponent([place.name, place.city, place.state, place.country].filter(Boolean).join(', '))
-                        window.open(`https://www.google.com/maps/search/${query}`, '_blank')
-                      }}
-                    >
-                      <MapPin className="h-4 w-4" />
-                      <span>View on Google Maps</span>
-                    </Button>
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                      {/* Google Maps Button */}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full flex items-center space-x-2 hover:bg-blue-50"
+                        onClick={() => {
+                          const query = encodeURIComponent([place.name, place.city, place.state, place.country].filter(Boolean).join(', '))
+                          window.open(`https://www.google.com/maps/search/${query}`, '_blank')
+                        }}
+                      >
+                        <MapPin className="h-4 w-4" />
+                        <span>View on Google Maps</span>
+                      </Button>
+
+                      {/* Favorite Button */}
+                      {session ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`w-full flex items-center space-x-2 ${
+                            favoritePlaces.has(`${place.name}-${place.city || selectedCity}`)
+                              ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                              : 'hover:bg-red-50 hover:text-red-600'
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleFavorite(place)
+                          }}
+                          disabled={favoriteLoading.has(`${place.name}-${place.city || selectedCity}`)}
+                        >
+                          {favoriteLoading.has(`${place.name}-${place.city || selectedCity}`) ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Heart 
+                              className={`h-4 w-4 ${
+                                favoritePlaces.has(`${place.name}-${place.city || selectedCity}`)
+                                  ? 'fill-current'
+                                  : ''
+                              }`} 
+                            />
+                          )}
+                          <span>
+                            {favoritePlaces.has(`${place.name}-${place.city || selectedCity}`)
+                              ? 'Remove from Favorites'
+                              : 'Add to Favorites'
+                            }
+                          </span>
+                        </Button>
+                      ) : null}
+
+                      {/* Add to Trip Button */}
+                      {session ? (
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          className="w-full flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openAddDestinationModal(place)
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                          <span>Add Destination</span>
+                        </Button>
+                      ) : (
+                        <Link href="/auth/signin">
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="w-full flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            <Plus className="h-4 w-4" />
+                            <span>Sign in to Add to Trip</span>
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </div>
         )}
+
+        {/* Add Destination Modal */}
+        <Dialog open={showAddDestinationModal} onOpenChange={setShowAddDestinationModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Destination to Trip</DialogTitle>
+              <DialogDescription>
+                Select a trip and set your travel dates for this destination.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Trip Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="trip-select">Select Trip *</Label>
+                <select
+                  id="trip-select"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={addDestinationForm.selectedTripId}
+                  onChange={(e) => setAddDestinationForm(prev => ({ ...prev, selectedTripId: e.target.value }))}
+                >
+                  <option value="">Choose a trip...</option>
+                  {userTrips.map((trip) => (
+                    <option key={trip.id} value={trip.id}>
+                      {trip.name} ({new Date(trip.startDate).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
+                {userTrips.length === 0 && (
+                  <p className="text-sm text-gray-500">
+                    No trips found. <Link href="/trips/create" className="text-blue-600 hover:underline">Create your first trip</Link>
+                  </p>
+                )}
+              </div>
+
+              {/* Destination Name */}
+              <div className="space-y-2">
+                <Label htmlFor="destination-name">Destination Name *</Label>
+                <Input
+                  id="destination-name"
+                  value={addDestinationForm.destinationName}
+                  onChange={(e) => setAddDestinationForm(prev => ({ ...prev, destinationName: e.target.value }))}
+                  placeholder="Enter destination name"
+                />
+              </div>
+
+              {/* Travel Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start-date">Start Date *</Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={addDestinationForm.startDate}
+                    onChange={(e) => setAddDestinationForm(prev => ({ ...prev, startDate: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end-date">End Date *</Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={addDestinationForm.endDate}
+                    onChange={(e) => setAddDestinationForm(prev => ({ ...prev, endDate: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Input
+                  id="notes"
+                  value={addDestinationForm.notes}
+                  onChange={(e) => setAddDestinationForm(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Add any notes about this destination"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setShowAddDestinationModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="flex-1"
+                  onClick={addDestinationToTrip}
+                  disabled={isAddingToTrip || !addDestinationForm.selectedTripId || !addDestinationForm.destinationName || !addDestinationForm.startDate || !addDestinationForm.endDate}
+                >
+                  {isAddingToTrip ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add to Trip
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Loading State */}
         {loading && (

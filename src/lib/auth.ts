@@ -48,24 +48,30 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt' as const,
-    maxAge: 24 * 60 * 60, // 24 hours to keep sessions small
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours - how often to refresh the session
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.role = (user as any).role
-        // Store minimal data to keep token small
         token.id = user.id
       }
+      
+      // Refresh the token if it's being updated
+      if (trigger === 'update') {
+        return token
+      }
+      
       return token
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string
         session.user.role = token.role
-        // Remove any potentially large fields
-        delete (session.user as any).image
-        delete (session.user as any).emailVerified
       }
       return session
     },

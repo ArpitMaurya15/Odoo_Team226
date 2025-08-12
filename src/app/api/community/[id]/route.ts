@@ -32,7 +32,29 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            description: true
+            description: true,
+            startDate: true,
+            endDate: true,
+            totalBudget: true,
+            stops: {
+              include: {
+                city: {
+                  select: {
+                    id: true,
+                    name: true,
+                    country: true
+                  }
+                },
+                activities: {
+                  orderBy: {
+                    startTime: 'asc'
+                  }
+                }
+              },
+              orderBy: {
+                order: 'asc'
+              }
+            }
           }
         },
         comments: {

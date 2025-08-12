@@ -267,9 +267,11 @@ export default function TripDetailsPage({ params }: { params: { id: string } }) 
                               {activity.description && (
                                 <p className="text-sm text-gray-700 mt-1">{activity.description}</p>
                               )}
-                              <p className="text-xs text-gray-500 mt-1">
-                                {formatDate(new Date(activity.scheduledDate))}
-                              </p>
+                              {activity.scheduledDate && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formatDate(new Date(activity.scheduledDate))}
+                                </p>
+                              )}
                             </div>
                           ))}
                         </div>
